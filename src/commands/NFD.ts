@@ -124,17 +124,15 @@ class NFD {
     }
 
     // mint was successful!
-    this.composeNFD(parts)
-      .then(() => this.storeNFDinDatabase(parts, getCallerFromCommand(interaction)))
-      .then((nfd) => this.makeReply(nfd, interaction, ownerMember))
-      .then(() => this.updateDBSuccessfulMint(ownerMember.id))
-      .catch((err) => {
-        interaction
-          .reply({ content: 'An asteroid came and broke everything... what a surprise', ephemeral: true })
-          .catch((err) => {
-            console.error('Something really went wrong hatching this dino...', err)
-          })
-      })
+    try {
+      const bodyParts = await this.composeNFD(parts)
+      const nfd = await this.storeNFDinDatabase(parts, getCallerFromCommand(interaction))
+      this.makeReply(nfd, interaction, ownerMember)
+      this.updateDBSuccessfulMint(ownerMember.id)
+    } catch(error) {
+        console.error('Failed to mint', error)
+        return await interaction.reply({ content: 'An asteroid came and broke everything... what a surprise', ephemeral: true })
+    }
   }
 
   @Slash('view', { description: 'View an existing dino.' })
@@ -310,8 +308,9 @@ class NFD {
       type: ApplicationCommandOptionType.String,
       description: 'The name of the dino to be gifted.',
       required: true,
-      autocomplete: function (this: NFD, interaction: AutocompleteInteraction) {
-        this.userNFDAutoComplete(interaction.user.id, interaction).then((choices) => interaction.respond(choices))
+      autocomplete: async function (this: NFD, interaction: AutocompleteInteraction) {
+        const choices = await this.userNFDAutoComplete(interaction.user.id, interaction)
+        interaction.respond(choices)
       },
     })
     name: string,
