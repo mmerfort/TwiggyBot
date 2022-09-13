@@ -47,7 +47,7 @@ export function getNicknameFromUser(target: User | GuildMember, guild: Guild): s
   }
 }
 
-export function isTwitchSub(user: GuildMember, guild: Guild) {
+export function isTwitchSub(user: GuildMember, guild: Guild): boolean {
   const PRIVILEGED_ROLES: Record<string, string[]> = {
     '103678524375699456': ['345501570483355648'], // The Banana Hammock ['Banana Hammock']
   }

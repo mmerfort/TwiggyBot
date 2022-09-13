@@ -14,11 +14,12 @@ import { Discord, Slash } from 'discordx'
 import { injectable } from 'tsyringe'
 import { ORM } from '../persistence/ORM'
 
-import { Duels } from '../../prisma/generated/prisma-client-js'
+import { Duels, User } from '../../prisma/generated/prisma-client-js'
 import { ColorRoles } from './roleCommands/changecolor'
 import { getCallerFromCommand, getGuildAndCallerFromCommand } from '../utils/CommandUtils'
 import { getGlobalDuelCDRemaining, getTimeLeftInReadableFormat } from '../utils/CooldownUtils'
 import { shuffleArray } from '../utils/Helpers'
+import { CommandReturn } from '../utils/Types'
 
 @Discord()
 @injectable()
@@ -33,7 +34,7 @@ export class Duel {
   public constructor(private client: ORM) {}
 
   @Slash('duel', { description: 'Challenge the chat to a duel' })
-  private async duel(interaction: CommandInteraction) {
+  private async duel(interaction: CommandInteraction): CommandReturn {
     // Get the challenger from the DB. Create them if they don't exist yet.
     const challengerMember = getCallerFromCommand(interaction)
     const challenger = await this.getUserWithDuelStats(interaction.user.id)
@@ -216,7 +217,7 @@ export class Duel {
   }
 
   @Slash('duelstats', { description: 'Display your duel statistics' })
-  private async duelStats(interaction: CommandInteraction) {
+  private async duelStats(interaction: CommandInteraction): CommandReturn {
     await interaction.deferReply()
 
     // TODO: Once/If we implement seasons this will need to change from findFirst
@@ -264,7 +265,7 @@ export class Duel {
   }
 
   @Slash('duelstreaks', { description: 'Show the overall duel statistics' })
-  private async streaks(interaction: CommandInteraction) {
+  private async streaks(interaction: CommandInteraction): CommandReturn {
     const streakStats = ['winStreakMax', 'lossStreakMax', 'draws', 'losses', 'wins'] as const
     const statFormatter = async (statName: typeof streakStats[number], emptyText: string): Promise<string> => {
       let stats = await this.client.$queryRawUnsafe<Duels[]>(
@@ -321,7 +322,7 @@ export class Duel {
     }
   }
 
-  private async updateUserScore(stats: Duels, outcome: 'win' | 'loss' | 'draw') {
+  private async updateUserScore(stats: Duels, outcome: 'win' | 'loss' | 'draw'): Promise<void> {
     switch (outcome) {
       case 'draw': {
         await this.client.duels.update({
@@ -388,7 +389,7 @@ export class Duel {
     return button
   }
 
-  private async getUserWithDuelStats(userId: string) {
+  private async getUserWithDuelStats(userId: string): Promise<User & { duelStats: Duels[] }> {
     // I'm not sure if we can do conditionals to check if no duelStats exist, so I went the verbose route...
     return this.client.user
       .upsert({

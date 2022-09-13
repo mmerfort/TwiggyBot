@@ -1,5 +1,6 @@
 import type { ArgsOf } from 'discordx'
 import { Discord, On } from 'discordx'
+import { CommandReturn } from '../utils/Types'
 
 @Discord()
 abstract class hibob {
@@ -8,11 +9,11 @@ abstract class hibob {
   private blobID = '104908485266817024' // Blob's user ID.
 
   @On('messageCreate')
-  private onMessage([message]: ArgsOf<'messageCreate'>) {
+  private async onMessage([message]: ArgsOf<'messageCreate'>): CommandReturn {
     if (message.author.id === this.blobID) {
       // Check whether it has been <cooldown> seconds since last message.
       if (!this.hasCooldown()) {
-        message.channel.send(`Hi, Blob!`)
+        return message.channel.send(`Hi, Blob!`)
       }
       // Update most recent message time.
       this.lastBlobMessage = Math.floor(Date.now())

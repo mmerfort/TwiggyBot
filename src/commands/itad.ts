@@ -59,15 +59,14 @@ class IsThereAnyDeal {
     command: SimpleCommandMessage
   ) {
     if (!game) {
-      await command.message.reply({ content: 'Usage: >itad <game>', allowedMentions: { repliedUser: false } })
-      return
+      return command.message.reply({ content: 'Usage: >itad <game>', allowedMentions: { repliedUser: false } })
     }
-    await this.getDeals(game)
+    return this.getDeals(game)
       .then(async (deals) => {
-        await command.message.reply({ content: deals, allowedMentions: { repliedUser: false } })
+        return command.message.reply({ content: deals, allowedMentions: { repliedUser: false } })
       })
       .catch(async (reason) => {
-        await command.message.reply({ content: `No deals found for ${game}`, allowedMentions: { repliedUser: false } })
+        return command.message.reply({ content: `No deals found for ${game}`, allowedMentions: { repliedUser: false } })
       })
   }
 

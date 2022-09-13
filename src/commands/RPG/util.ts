@@ -1,6 +1,6 @@
 import { classes } from './Data'
 
-export function cyrb53(str: string, seed = 0): number {
+export const cyrb53 = (str: string, seed = 0): number => {
   // Hash the input string to int
   let h1 = 0xdeadbeef ^ seed,
     h2 = 0x41c6ce57 ^ seed
@@ -14,7 +14,7 @@ export function cyrb53(str: string, seed = 0): number {
   return 4294967296 * (2097151 & h2) + (h1 >>> 0)
 }
 
-export function mulberry32(a: number): () => number {
+export const mulberry32 = (a: number): (() => number) => {
   // a is a seed, returns a simple seeded RNG function from then.
   return function () {
     let t = (a += 0x6d2b79f5)
@@ -24,18 +24,18 @@ export function mulberry32(a: number): () => number {
   }
 }
 
-export function getRandomElement<T>(a: T[]): T {
+export const getRandomElement = <T>(a: T[]): T => {
   // returns a random element from a using Math.random()
   return getSeededRandomElement(a, Math.random)
 }
 
-export function getSeededRandomElement<T>(a: T[], rng: () => number): T {
+export const getSeededRandomElement = <T>(a: T[], rng: () => number): T => {
   // returns a random element from a,
   // calling rng argument to get random number.
   return a[Math.floor(rng() * a.length)]
 }
 
-export function shuffleArray<T>(a: T[]) {
+export const shuffleArray = <T>(a: T[]): T[] => {
   // In place Fisher-Yates shuffle stolen from Stack Overflow
   let j, x, i
   for (i = a.length - 1; i > 0; i--) {
@@ -47,7 +47,7 @@ export function shuffleArray<T>(a: T[]) {
   return a
 }
 
-export function rollSeeded_dy_x_TimesPick_z(sides: number, total: number, pick: number, rng: () => number): number {
+export const rollSeeded_dy_x_TimesPick_z = (sides: number, total: number, pick: number, rng: () => number): number => {
   // Roll {total} d{sides} dice, and sum the top {pick} results
   // if provided, the {rng} argument is used for random numbers,
   const rolls = []
@@ -58,14 +58,14 @@ export function rollSeeded_dy_x_TimesPick_z(sides: number, total: number, pick: 
   return rolls.slice(0, pick).reduce((a, b) => a + b, 0)
 }
 
-export function roll_dy_x_TimesPick_z(sides: number, total: number, pick: number): number {
+export const roll_dy_x_TimesPick_z = (sides: number, total: number, pick: number): number => {
   // Roll {total} d{sides} dice, and sum the top {pick} results
   // random generation is done by unseeded Math.random()
 
   return rollSeeded_dy_x_TimesPick_z(sides, total, pick, Math.random)
 }
 
-export function getEloRankChange(rankA: number, rankB: number, K: number, result: 'win' | 'loss' | 'draw'): number {
+export const getEloRankChange = (rankA: number, rankB: number, K: number, result: 'win' | 'loss' | 'draw'): number => {
   // Returns player A's new Elo rank for given result.
   const BASE = 10
   const EXPONENT = 1.0 / 400.0
@@ -90,7 +90,7 @@ export function getEloRankChange(rankA: number, rankB: number, K: number, result
   return Math.round(rankA + K * (score - expectedA))
 }
 
-export function balancingClasses() {
+export const balancingClasses = (): void => {
   const stats = ['STR', 'DEX', 'CON', 'WIS', 'INT', 'CHR'] as const
   const data: Record<string, number> = { STR: 0, DEX: 0, CON: 0, WIS: 0, INT: 0, CHR: 0 }
   for (let i = 0; i < classes.length; i++) {

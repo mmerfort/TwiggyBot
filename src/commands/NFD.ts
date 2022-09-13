@@ -9,7 +9,6 @@ import {
   CommandInteraction,
   EmbedBuilder,
   GuildMember,
-  InteractionResponse,
   PermissionFlagsBits,
   Snowflake,
   User,
@@ -18,9 +17,10 @@ import { Discord, Guard, Slash, SlashChoice, SlashGroup, SlashOption } from 'dis
 import { getCallerFromCommand, getNicknameFromUser, isTwitchSub } from '../utils/CommandUtils'
 import { injectable } from 'tsyringe'
 import { ORM } from '../persistence'
-import { NFDItem } from '../../prisma/generated/prisma-client-js'
+import { NFDEnjoyer, NFDItem, Prisma } from '../../prisma/generated/prisma-client-js'
 import { IsSuperUser } from '../guards/RoleChecks'
 import sharp from 'sharp'
+import { CommandReturn } from '../utils/Types'
 
 type BodyParts = {
   body: string
@@ -33,11 +33,6 @@ type BodyParts = {
 
 @Discord()
 @SlashGroup({ name: 'dino', description: 'Birth, collect, and trade adorable dinos.' })
-// @SlashGroup({
-//   name: 'mod',
-//   description: 'Moderator only commands',
-//   root: 'nfd',
-// })
 @injectable()
 class NFD {
   private MINT_COOLDOWN = 1000 * 60 * 60 * 23
@@ -78,7 +73,7 @@ class NFD {
 
   @Slash('hatch', { description: 'Attempt to hatch a new dino. Being a subscriber makes hatching more likely.' })
   @SlashGroup('dino')
-  async mint(interaction: CommandInteraction) {
+  async mint(interaction: CommandInteraction): CommandReturn {
     const ownerMember = getCallerFromCommand(interaction)
     if (!ownerMember) {
       return interaction.reply({ content: 'User undefined X(', ephemeral: true })
@@ -130,17 +125,15 @@ class NFD {
     }
 
     // mint was successful!
-    this.composeNFD(parts)
-      .then(() => this.storeNFDinDatabase(parts, getCallerFromCommand(interaction)))
-      .then((nfd) => this.makeReply(nfd, interaction, ownerMember))
-      .then(() => this.updateDBSuccessfulMint(ownerMember.id))
-      .catch((err) => {
-        interaction
-          .reply({ content: 'An asteroid came and broke everything... what a surprise', ephemeral: true })
-          .catch((err) => {
-            console.error('Something really went wrong hatching this dino...', err)
-          })
-      })
+    try {
+      await this.composeNFD(parts)
+      const nfd = await this.storeNFDinDatabase(parts, getCallerFromCommand(interaction))
+      await this.updateDBSuccessfulMint(ownerMember.id)
+      return this.makeReply(nfd, interaction, ownerMember)
+    } catch (err) {
+      console.log(`An error occurred while hatching`)
+      return interaction.reply({ content: 'An asteroid came and broke everything... what a surprise', ephemeral: true })
+    }
   }
 
   @Slash('view', { description: 'View an existing dino.' })
@@ -157,7 +150,7 @@ class NFD {
     @SlashOption('silent', { type: ApplicationCommandOptionType.Boolean, required: false })
     silent = true,
     interaction: CommandInteraction
-  ) {
+  ): CommandReturn {
     if (!interaction.guild) {
       return interaction.reply({ content: 'The ecosystem is broken. The guild is missing :(', ephemeral: true })
     }
@@ -184,7 +177,7 @@ class NFD {
     @SlashOption('silent', { type: ApplicationCommandOptionType.Boolean, required: false })
     silent = true,
     interaction: CommandInteraction
-  ) {
+  ): CommandReturn {
     if (!interaction.guild) {
       return interaction.reply({ content: 'Guild is missing from interaction.', ephemeral: true })
     }
@@ -315,7 +308,7 @@ class NFD {
     })
     recipient: User | GuildMember,
     interaction: CommandInteraction
-  ) {
+  ): CommandReturn {
     return this.performGift(name, recipient, false, interaction)
   }
 
@@ -325,7 +318,7 @@ class NFD {
     recipient: User | GuildMember,
     sudo: boolean,
     interaction: CommandInteraction
-  ) {
+  ): CommandReturn {
     if (!interaction.guild) {
       return interaction.reply({
         content: 'The Guild is missing. No idea why, but it is.',
@@ -415,7 +408,7 @@ class NFD {
     })
     replacement: string,
     interaction: CommandInteraction
-  ) {
+  ): CommandReturn {
     if (!interaction.guild) {
       return interaction.reply({ content: 'The dinoverse is broken. The guild is missing :(', ephemeral: true })
     }
@@ -509,7 +502,7 @@ class NFD {
     })
     name: string,
     interaction: CommandInteraction
-  ) {
+  ): CommandReturn {
     // Confirm the NFD exists
     const nfd = await this.getNFDByName(name)
     if (!nfd) {
@@ -560,7 +553,7 @@ class NFD {
     })
     second: string,
     interaction: CommandInteraction
-  ) {
+  ): CommandReturn {
     const ownerMember = getCallerFromCommand(interaction)
     if (!ownerMember) {
       return interaction.reply({ content: 'User undefined X(', ephemeral: true })
@@ -629,10 +622,10 @@ class NFD {
 
       const [_delete, nfd, _enjoyer] = await this.client.$transaction([deleteNfds, createNfd, successfulSlurp])
 
-      await this.makeReply(nfd, interaction, ownerMember)
+      return this.makeReply(nfd, interaction, ownerMember)
     } catch (err) {
       console.error('Something really went wrong breeding dinos...', err)
-      interaction.reply({ content: 'The dinoverse broke... what a surprise', ephemeral: true })
+      return interaction.reply({ content: 'The dinoverse broke... what a surprise', ephemeral: true })
     }
   }
 
@@ -651,7 +644,7 @@ class NFD {
     return { body: body, mouth: mouth, eyes: eyes, code: code }
   }
 
-  private async composeNFD(parts: BodyParts) {
+  private async composeNFD(parts: BodyParts): Promise<BodyParts> {
     const out = sharp(path.join(this.FRAGMENT_PATH, parts.body)).composite([
       {
         input: path.join(this.FRAGMENT_PATH, parts.mouth),
@@ -669,7 +662,7 @@ class NFD {
     return Promise.resolve(parts)
   }
 
-  private async getNFDByCode(code: string) {
+  private async getNFDByCode(code: string): Promise<NFDItem | null> {
     return this.client.nFDItem.findUnique({
       where: {
         code: code,
@@ -677,7 +670,7 @@ class NFD {
     })
   }
 
-  private async getNFDByName(name: string) {
+  private async getNFDByName(name: string): Promise<NFDItem | null> {
     return this.client.nFDItem.findUnique({
       where: {
         name: name,
@@ -685,7 +678,7 @@ class NFD {
     })
   }
 
-  private storeNFDinDatabase(parts: BodyParts, owner: GuildMember | null) {
+  private storeNFDinDatabase(parts: BodyParts, owner: GuildMember | null): Prisma.Prisma__NFDItemClient<NFDItem> {
     if (!parts.name || !parts.fileName) {
       throw Error('Name and filePath cannot be null')
     }
@@ -705,7 +698,7 @@ class NFD {
     })
   }
 
-  private makeName(parts: BodyParts) {
+  private makeName(parts: BodyParts): string {
     const bodyStr = parts.body.replace('_b.png', '')
     const mouthStr = parts.mouth.replace('_m.png', '')
     const eyesStr = parts.eyes.replace('_e.png', '')
@@ -732,7 +725,7 @@ class NFD {
     )
   }
 
-  private async getUserFromDB(userId: string) {
+  private async getUserFromDB(userId: string): Promise<NFDEnjoyer> {
     return this.client.nFDEnjoyer.upsert({
       where: {
         id: userId,
@@ -744,7 +737,7 @@ class NFD {
     })
   }
 
-  private async updateDBSuccessfulMint(userId: string) {
+  private async updateDBSuccessfulMint(userId: string): Promise<NFDEnjoyer> {
     return this.client.nFDEnjoyer.upsert({
       where: {
         id: userId,
@@ -765,7 +758,7 @@ class NFD {
     })
   }
 
-  private async updateDBfailedMint(userId: string) {
+  private async updateDBfailedMint(userId: string): Promise<NFDEnjoyer> {
     return this.client.nFDEnjoyer.upsert({
       where: {
         id: userId,
@@ -782,7 +775,7 @@ class NFD {
     })
   }
 
-  private async updateDBSuccessfulGift(userId: string) {
+  private async updateDBSuccessfulGift(userId: string): Promise<NFDEnjoyer> {
     return this.client.nFDEnjoyer.upsert({
       where: {
         id: userId,
@@ -797,7 +790,7 @@ class NFD {
     })
   }
 
-  private updateDBSuccessfulSlurp(userId: string) {
+  private updateDBSuccessfulSlurp(userId: string): Promise<NFDEnjoyer> {
     return this.client.nFDEnjoyer.upsert({
       where: {
         id: userId,
@@ -825,7 +818,7 @@ class NFD {
     return 2 ** exponent
   }
 
-  private async ensureImageExists(fileName: string, name: string, code: string) {
+  private async ensureImageExists(fileName: string, name: string, code: string): Promise<string> {
     const fullPath = path.join(this.OUTPUT_PATH, fileName)
     // If the file exists, easy just return the name
     if (fs.existsSync(fullPath)) {
@@ -846,7 +839,7 @@ class NFD {
       })
   }
 
-  private async makeCollage(nfdList: NFDItem[]) {
+  private async makeCollage(nfdList: NFDItem[]): Promise<Buffer> {
     const workingList = nfdList.slice(0, Math.min(nfdList.length, this.MAX_COLLAGE_ITEMS))
 
     const columnCount = Math.ceil(Math.sqrt(workingList.length))
@@ -878,7 +871,12 @@ class NFD {
       .toBuffer()
   }
 
-  private makeReply(nfd: NFDItem, interaction: CommandInteraction, owner: GuildMember | undefined, ephemeral = false) {
+  private async makeReply(
+    nfd: NFDItem,
+    interaction: CommandInteraction,
+    owner: GuildMember | undefined,
+    ephemeral = false
+  ): CommandReturn {
     const nfdName = nfd.name
 
     const author = owner ? owner.nickname ?? owner.user.username : 'UNKNOWN'
@@ -886,38 +884,36 @@ class NFD {
 
     // Check for the existence of the image in the cache, if it doesn't exist, make it.
 
-    this.ensureImageExists(nfd.filename, nfd.name, nfd.code)
-      .then((validatedFilePath) => {
-        if (!validatedFilePath) {
-          return interaction.reply({ content: 'Something went wrong fetching the image', ephemeral: true })
-        }
-        const imageAttachment = new AttachmentBuilder(validatedFilePath)
-        const embed = new EmbedBuilder()
-          .setColor(this.NFD_COLOR)
-          .setAuthor({ name: author, iconURL: avatar })
-          .setTitle(nfdName)
-          .setImage(`attachment://${path.basename(validatedFilePath)}`)
-          .setFooter({
-            text: `${nfd.name} is worth ${this.getNFDPrice(nfd).toFixed(2)} Dino Bucks!`,
-          })
-          .setDescription(`**Created:** <t:${Math.round(nfd.mintDate.getTime() / 1000)}>`)
-        return interaction.reply({
-          embeds: [embed],
-          files: [imageAttachment],
-          ephemeral: ephemeral,
+    try {
+      const validatedFilePath = await this.ensureImageExists(nfd.filename, nfd.name, nfd.code)
+      if (!validatedFilePath) {
+        return interaction.reply({ content: 'Something went wrong fetching the image', ephemeral: true })
+      }
+      const imageAttachment = new AttachmentBuilder(validatedFilePath)
+      const embed = new EmbedBuilder()
+        .setColor(this.NFD_COLOR)
+        .setAuthor({ name: author, iconURL: avatar })
+        .setTitle(nfdName)
+        .setImage(`attachment://${path.basename(validatedFilePath)}`)
+        .setFooter({
+          text: `${nfd.name} is worth ${this.getNFDPrice(nfd).toFixed(2)} Dino Bucks!`,
         })
+        .setDescription(`**Created:** <t:${Math.round(nfd.mintDate.getTime() / 1000)}>`)
+      return interaction.reply({
+        embeds: [embed],
+        files: [imageAttachment],
+        ephemeral: ephemeral,
       })
-      .catch((reason) => {
-        const err = 'Something went wrong while building the dino: ' + reason
-        console.log(err, 'filename: ', nfd.filename, 'nfd code:', nfd.code)
-        return interaction.reply({
-          content: err,
-          ephemeral: true,
-        })
+    } catch (err) {
+      console.log(`Something went wrong while building the dino: filename: ${nfd.filename}, nfd code: ${nfd.code}`, err)
+      return interaction.reply({
+        content: 'Something went wrong while building the dino',
+        ephemeral: true,
       })
+    }
   }
 
-  private async makeNFDcode() {
+  private async makeNFDcode(): Promise<BodyParts | null> {
     // Loop through, repeatedly trying to make an NFD that doesn't already exist yet
     let i = 0
     let parts: BodyParts
@@ -943,7 +939,10 @@ class NFD {
     return null
   }
 
-  private async userNFDAutoComplete(userId: Snowflake, interaction: AutocompleteInteraction) {
+  private async userNFDAutoComplete(
+    userId: Snowflake,
+    interaction: AutocompleteInteraction
+  ): Promise<ApplicationCommandOptionChoiceData[]> {
     return this.client.nFDItem
       .findMany({
         where: {
@@ -960,7 +959,9 @@ class NFD {
       )
   }
 
-  private async allNFDAutoComplete(interaction: AutocompleteInteraction) {
+  private async allNFDAutoComplete(
+    interaction: AutocompleteInteraction
+  ): Promise<ApplicationCommandOptionChoiceData[]> {
     return this.client.nFDItem
       .findMany({
         where: {
@@ -996,7 +997,7 @@ class NFD {
     })
     name: string,
     interaction: CommandInteraction
-  ) {
+  ): CommandReturn {
     const nfd = await this.getNFDByName(name)
     if (!nfd) {
       return interaction.reply({ content: "I couldn't find a dino with that name.", ephemeral: true })
@@ -1036,7 +1037,7 @@ class NFD {
     @SlashChoice({ name: 'All', value: 'ALL' })
     cooldown: string,
     interaction: CommandInteraction
-  ) {
+  ): CommandReturn {
     if (!interaction.guild) {
       return interaction.reply({ content: 'The dinoverse is broken. The guild is missing :(', ephemeral: true })
     }
@@ -1140,7 +1141,7 @@ class NFD {
     nfd: string,
     recipient: User | GuildMember,
     interaction: CommandInteraction
-  ) {
+  ): CommandReturn {
     // Call gift with sudo enabled.
     return this.performGift(nfd, recipient, true, interaction)
   }

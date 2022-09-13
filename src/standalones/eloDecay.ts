@@ -9,7 +9,7 @@ function calculateEloDecay(eloRank: number): number {
   return Math.round(working)
 }
 
-async function main() {
+async function main(): Promise<void> {
   console.log(`\nElo Decay running at ${new Date()}`)
   const client = new PrismaClient()
 

@@ -9,6 +9,7 @@ import {
   SlashChoice,
   SlashOption,
 } from 'discordx'
+import { CommandReturn } from '../utils/Types'
 
 class Board {
   private width: number
@@ -141,7 +142,7 @@ class Minesweeper {
     @SimpleCommandOption('difficulty', { type: SimpleCommandOptionType.String })
     difficulty: string | undefined,
     command: SimpleCommandMessage
-  ) {
+  ): CommandReturn {
     const { content, ephemeral } = this.newGame(command.message.channelId, difficulty)
     if (!ephemeral) {
       await command.message.channel.send(content)
@@ -160,7 +161,7 @@ class Minesweeper {
     })
     difficulty: string | undefined,
     interaction: CommandInteraction
-  ) {
+  ): CommandReturn {
     const reply = this.newGame(interaction.channelId, difficulty)
     await interaction.reply(reply)
   }

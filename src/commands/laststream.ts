@@ -3,6 +3,7 @@ import { Discord, SimpleCommand, SimpleCommandMessage, Slash } from 'discordx'
 
 import { ClientCredentialsAuthProvider } from '@twurple/auth'
 import { ApiClient } from '@twurple/api'
+import { CommandReturn } from '../utils/Types'
 
 const formatTimeString = (duration: number) => {
   const seconds = Math.floor((duration / 1000) % 60),
@@ -35,50 +36,46 @@ class LastStream {
   }
 
   @SimpleCommand('flaststream')
-  async simple(command: SimpleCommandMessage) {
+  async simple(command: SimpleCommandMessage): CommandReturn {
     const lastStream = await this.getLastStream()
     if (lastStream == -1) {
-      command.message.reply({
+      return command.message.reply({
         content: 'Bananasaurus_Rex is streaming right now',
         allowedMentions: { repliedUser: false },
       })
-      return
     }
     if (lastStream === null) {
-      command.message.reply({ content: 'Something went wrong', allowedMentions: { repliedUser: false } })
-      return
+      return command.message.reply({ content: 'Something went wrong', allowedMentions: { repliedUser: false } })
     }
-    command.message.reply({
+    return command.message.reply({
       content: `Bananasaurus_Rex was last seen streaming ${formatTimeString(lastStream)} ago`,
       allowedMentions: { repliedUser: false },
     })
   }
 
   @Slash('flaststream', { description: "Get time since Rex's last stream" })
-  async slash(interaction: CommandInteraction) {
+  async slash(interaction: CommandInteraction): CommandReturn {
     await interaction.deferReply()
 
     const lastStream = await this.getLastStream()
 
     if (lastStream == -1) {
-      interaction.followUp("Bananasaurus_Rex's stream is currently live. Why are you checking for it here?")
-      return
+      return interaction.followUp("Bananasaurus_Rex's stream is currently live. Why are you checking for it here?")
     }
     if (lastStream === null) {
-      interaction.followUp('Something went wrong')
-      return
+      return interaction.followUp('Something went wrong')
     }
-    interaction.followUp(`Bananasaurus_Rex was last seen streaming ${formatTimeString(lastStream)} seconds ago`)
+    return interaction.followUp(`Bananasaurus_Rex was last seen streaming ${formatTimeString(lastStream)} seconds ago`)
   }
 
   // Joke versions
   @SimpleCommand('flatstream')
-  async simpleFlat(command: SimpleCommandMessage) {
-    await command.message.channel.send('🐊')
+  async simpleFlat(command: SimpleCommandMessage): CommandReturn {
+    return command.message.channel.send('🐊')
   }
 
   @SimpleCommand('fartstream')
-  async simpleFart(command: SimpleCommandMessage) {
+  async simpleFart(command: SimpleCommandMessage): CommandReturn {
     await command.message.channel.send('💨')
   }
 

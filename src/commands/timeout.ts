@@ -23,6 +23,7 @@ import {
   SlashOption,
 } from 'discordx'
 import { IsSuperUser, memberIsSU } from '../guards/RoleChecks'
+import { CommandReturn } from '../utils/Types'
 
 @Discord()
 abstract class Timeout {
@@ -104,12 +105,12 @@ abstract class Timeout {
     })
     message: string | undefined,
     command: SimpleCommandMessage
-  ) {
+  ): CommandReturn {
     if (!this.hasPermission(command)) {
       return
     }
 
-    await command.message.channel.send(await this.sudoku(command.message.member, message))
+    return command.message.channel.send(await this.sudoku(command.message.member, message))
   }
 
   @Slash('sudoku', { description: 'Commit sudoku' })
@@ -121,16 +122,15 @@ abstract class Timeout {
     })
     message: string | undefined,
     interaction: CommandInteraction
-  ) {
+  ): CommandReturn {
     if (!(interaction.member instanceof GuildMember) || !this.hasPermission(interaction)) {
-      await interaction.reply({
+      return interaction.reply({
         content: 'I cannot time you out.',
         ephemeral: true,
       })
-      return
     }
 
-    await interaction.reply(await this.sudoku(interaction.member, message))
+    return interaction.reply(await this.sudoku(interaction.member, message))
   }
 
   @SimpleCommand('timeout')
@@ -139,14 +139,13 @@ abstract class Timeout {
     @SimpleCommandOption('user', { type: SimpleCommandOptionType.User }) user: GuildMember | User | undefined,
     @SimpleCommandOption('duration', { type: SimpleCommandOptionType.Number }) duration: number | undefined,
     command: SimpleCommandMessage
-  ) {
+  ): CommandReturn {
     if (!(user instanceof GuildMember) || !this.hasPermission(command, user)) {
       return
     }
 
     if (!duration) {
-      await command.message.channel.send('Duration has to be a number.')
-      return
+      return command.message.channel.send('Duration has to be a number.')
     }
 
     // Max timeout is 10 days
@@ -156,7 +155,7 @@ abstract class Timeout {
 
     await user.timeout(duration * 1000, `${command.message.author} used timeout command`)
     if (command.message.author.id === this.gozId) {
-      await command.message.channel.send('In the name of the Moon, I shall punish you!')
+      return command.message.channel.send('In the name of the Moon, I shall punish you!')
     }
   }
 
@@ -170,28 +169,25 @@ abstract class Timeout {
     })
     duration: number,
     interaction: CommandInteraction
-  ) {
+  ): CommandReturn {
     if (!(interaction.member instanceof GuildMember) || !this.hasPermission(interaction, user)) {
-      await interaction.reply({ content: 'Cannot timeout user.', ephemeral: true })
-      return
+      return interaction.reply({ content: 'Cannot timeout user.', ephemeral: true })
     }
 
     if (!duration) {
-      await interaction.reply({ content: 'Duration has to be a number.', ephemeral: true })
-      return
+      return interaction.reply({ content: 'Duration has to be a number.', ephemeral: true })
     }
 
     // Max timeout is 10 days
     if (duration > 10 * 24 * 60 * 60 * 1000) {
-      await interaction.reply({ content: 'Duration exceeds the 10 days limit.', ephemeral: true })
-      return
+      return interaction.reply({ content: 'Duration exceeds the 10 days limit.', ephemeral: true })
     }
 
     await user.timeout(duration * 1000, `${interaction.user} used timeout command`)
     if (interaction.user.id === this.gozId) {
-      await interaction.reply('In the name of the Moon, I shall punish you!')
+      return interaction.reply('In the name of the Moon, I shall punish you!')
     } else {
-      await interaction.reply({ content: `${user} has been timed out for ${duration} seconds`, ephemeral: true })
+      return interaction.reply({ content: `${user} has been timed out for ${duration} seconds`, ephemeral: true })
     }
   }
 }

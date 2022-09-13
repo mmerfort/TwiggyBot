@@ -10,6 +10,7 @@ import {
 } from 'discordx'
 import { uwuify } from './uwu'
 import fetch from 'node-fetch'
+import { CommandReturn } from '../utils/Types'
 
 interface Quote {
   id: number
@@ -24,7 +25,7 @@ interface QuoteData {
 }
 
 @Discord()
-class quoteCommand {
+class QuoteCommand {
   private endpoint = 'https://api.bufutda.com/bot/quote?channel=bananasaurus_rex'
   private quotes: Array<Quote> = []
   private lastFetch: Date = new Date()
@@ -35,8 +36,8 @@ class quoteCommand {
     @SlashOption('quoteid', { type: ApplicationCommandOptionType.Integer, required: false })
     id: number | undefined,
     interaction: CommandInteraction
-  ) {
-    await this.generateMessage(id).then(
+  ): CommandReturn {
+    return this.generateMessage(id).then(
       async ([message, error]) => await interaction.reply({ content: message, ephemeral: error })
     )
   }
@@ -46,8 +47,8 @@ class quoteCommand {
     @SimpleCommandOption('id', { type: SimpleCommandOptionType.Number })
     id: number | undefined,
     command: SimpleCommandMessage
-  ) {
-    await this.generateMessage(id).then(
+  ): CommandReturn {
+    return this.generateMessage(id).then(
       async ([message, _]) => await command.message.reply({ content: message, allowedMentions: { repliedUser: false } })
     )
   }
@@ -57,8 +58,8 @@ class quoteCommand {
     @SlashOption('quwuoteid', { type: ApplicationCommandOptionType.Integer, required: false })
     id: number | undefined,
     interaction: CommandInteraction
-  ) {
-    await this.generateMessage(id, uwuify).then(
+  ): CommandReturn {
+    return this.generateMessage(id, uwuify).then(
       async ([message, error]) => await interaction.reply({ content: message, ephemeral: error })
     )
   }
@@ -68,7 +69,7 @@ class quoteCommand {
     @SimpleCommandOption('id', { type: SimpleCommandOptionType.Number })
     id: number | undefined,
     command: SimpleCommandMessage
-  ) {
+  ): CommandReturn {
     await this.generateMessage(id, uwuify).then(
       async ([message, _]) => await command.message.reply({ content: message, allowedMentions: { repliedUser: false } })
     )
@@ -100,7 +101,7 @@ class quoteCommand {
     return this.quotes[Math.floor(Math.random() * this.quotes.length)]
   }
 
-  private async updateQuotes() {
+  private async updateQuotes(): Promise<void> {
     // Only get the quotes if there aren't any yet or the cache has expired
     if (this.quotes.length == 0 || this.lastFetch.getTime() + this.cacheDuration < Date.now()) {
       await this.fetchQuotes()

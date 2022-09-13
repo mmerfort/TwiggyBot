@@ -3,6 +3,7 @@ import { Discord, SimpleCommand, SimpleCommandMessage, Slash } from 'discordx'
 import { injectable } from 'tsyringe'
 import { ORM } from '../persistence'
 import { BestMixu } from '../../prisma/generated/prisma-client-js'
+import { CommandReturn } from '../utils/Types'
 
 @Discord()
 @injectable()
@@ -32,7 +33,7 @@ class Mixu {
     return this.bestMixu
   }
 
-  private async setBestMixu(mixu: BestMixu) {
+  private async setBestMixu(mixu: BestMixu): Promise<void> {
     this.bestMixu = mixu
 
     await this.client.bestMixu
@@ -111,7 +112,7 @@ class Mixu {
   }
 
   @SimpleCommand('mixu', { directMessage: false })
-  async mixuCommand(command: SimpleCommandMessage) {
+  async mixuCommand(command: SimpleCommandMessage): CommandReturn {
     if (!command.message.guild || !this.isMixuChannel(command.message.channel.id)) {
       return
     }
@@ -121,7 +122,7 @@ class Mixu {
   }
 
   @Slash('mixu', { description: 'Miku tile game' })
-  async mixuSlashCommand(interaction: CommandInteraction) {
+  async mixuSlashCommand(interaction: CommandInteraction): CommandReturn {
     if (
       !interaction.command?.guild ||
       !interaction.channel?.id ||
@@ -138,7 +139,7 @@ class Mixu {
   }
 
   @SimpleCommand('bestmixu', { directMessage: false })
-  async bestMixuSimpleCommand(command: SimpleCommandMessage) {
+  async bestMixuSimpleCommand(command: SimpleCommandMessage): CommandReturn {
     if (!command.message.guild || !this.isMixuChannel(command.message.channel.id)) {
       return
     }
@@ -151,19 +152,18 @@ class Mixu {
 
     // Sending 2 separate messages to keep the Mixu emotes size big
     command.message.channel.send(owner)
-    command.message.channel.send(text)
+    return command.message.channel.send(text)
   }
 
   @Slash('bestmixu', { description: 'Show best mixu' })
-  async bestMixuSlashCommand(interaction: CommandInteraction) {
+  async bestMixuSlashCommand(interaction: CommandInteraction): CommandReturn {
     if (
       !interaction.command?.guild ||
       !interaction.channel?.id ||
       !this.isMixuChannel(interaction.channel.id) ||
       !interaction.command.client.user?.username
     ) {
-      await interaction.reply({ content: 'This command can only be used in the #mixu channel', ephemeral: true })
-      return
+      return interaction.reply({ content: 'This command can only be used in the #mixu channel', ephemeral: true })
     }
 
     await interaction.deferReply()
@@ -175,31 +175,28 @@ class Mixu {
     const [owner, text] = mixuInfo
 
     await interaction.followUp(owner)
-    await interaction.followUp(text)
+    return interaction.followUp(text)
   }
 
   @SimpleCommand('mikustare', { directMessage: false })
-  mikustareSimple(command: SimpleCommandMessage) {
-    if (!command.message.guild || !this.isMixuChannel(command.message.channel.id)) {
-      return
+  mikustareSimple(command: SimpleCommandMessage): CommandReturn | undefined {
+    if (command.message.guild && this.isMixuChannel(command.message.channel.id)) {
+      const text = this.stringify(this.numbers, command.message.guild)
+      return command.message.channel.send(
+        `:regional_indicator_m::regional_indicator_i::regional_indicator_k::regional_indicator_u:${text}`
+      )
     }
-
-    const text = this.stringify(this.numbers, command.message.guild)
-    command.message.channel.send(
-      `:regional_indicator_m::regional_indicator_i::regional_indicator_k::regional_indicator_u:${text}`
-    )
   }
 
   @Slash('mikustare', { description: 'Output correctly aligned Miku picture' })
-  async mikustareSlash(interaction: CommandInteraction) {
+  async mikustareSlash(interaction: CommandInteraction): CommandReturn {
     if (!interaction.command?.guild || !interaction.channel?.id || !this.isMixuChannel(interaction.channel.id)) {
-      await interaction.reply({ content: 'This command can only be used in the #mixu channel', ephemeral: true })
-      return
+      return interaction.reply({ content: 'This command can only be used in the #mixu channel', ephemeral: true })
     }
 
     await interaction.deferReply()
     const text = this.stringify(this.numbers, interaction.command.guild)
-    await interaction.followUp(
+    return interaction.followUp(
       `:regional_indicator_m::regional_indicator_i::regional_indicator_k::regional_indicator_u:${text}`
     )
   }

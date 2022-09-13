@@ -23,6 +23,7 @@ import { injectable } from 'tsyringe'
 import { ORM } from '../../persistence'
 import { RPGCharacter } from '../../../prisma/generated/prisma-client-js'
 import { getGlobalRPGCDRemaining, getTimeLeftInReadableFormat } from '../../utils/CooldownUtils'
+import { CommandReturn } from '../../utils/Types'
 
 type AttackResult = {
   text: string
@@ -262,14 +263,13 @@ export class RPG {
     @SlashOption('silent', { type: ApplicationCommandOptionType.Boolean, required: false })
     silent = true,
     interaction: CommandInteraction
-  ) {
+  ): CommandReturn {
     const callerMember = getCallerFromCommand(interaction)
     const callingUser = callerMember?.user
     if (callingUser) {
       if (name) {
         if (name.length >= 256) {
-          interaction.reply({ content: 'Name must be fewer than 256 characters', ephemeral: true })
-          return
+          return interaction.reply({ content: 'Name must be fewer than 256 characters', ephemeral: true })
         }
         const character = new Character(callingUser, name, name)
         interaction.reply({ embeds: [character.toEmbed('')], ephemeral: silent })
@@ -281,10 +281,10 @@ export class RPG {
           callerMember.nickname ?? callerMember.user.username,
           callerMember.nickname ?? undefined
         )
-        interaction.reply({ embeds: [character.toEmbed(eloBandIcon.icon)], ephemeral: silent })
+        return interaction.reply({ embeds: [character.toEmbed(eloBandIcon.icon)], ephemeral: silent })
       }
     } else {
-      interaction.reply({ content: 'Username undefined', ephemeral: true })
+      return interaction.reply({ content: 'Username undefined', ephemeral: true })
     }
   }
 
@@ -293,7 +293,7 @@ export class RPG {
     @SlashOption('silent', { type: ApplicationCommandOptionType.Boolean, required: false })
     silent = true,
     interaction: CommandInteraction
-  ) {
+  ): CommandReturn {
     // await interaction.deferReply()
 
     const callerMember = interaction.member
@@ -313,9 +313,9 @@ export class RPG {
           **Peak Rank:** ${callerDBRecord.peakElo}${this.getBandForEloRank(callerDBRecord.peakElo).icon}\n
           **Lowest Rank:** ${callerDBRecord.floorElo}${this.getBandForEloRank(callerDBRecord.floorElo).icon}`
         )
-      await interaction.reply({ embeds: [statsEmbed], ephemeral: silent })
+      return interaction.reply({ embeds: [statsEmbed], ephemeral: silent })
     } else {
-      await interaction.reply({
+      return interaction.reply({
         content: `Hmm, ${interaction.user}... It seems you are yet to test your steel.`,
         ephemeral: true,
       })
@@ -327,7 +327,7 @@ export class RPG {
     @SlashOption('silent', { type: ApplicationCommandOptionType.Boolean, required: false })
     silent = true,
     interaction: CommandInteraction
-  ) {
+  ): CommandReturn {
     const getLadderStats = async (): Promise<LadderState> => {
       const top = await this.client.$queryRawUnsafe<RPGCharacter[]>(
         `SELECT * FROM RPGCharacter WHERE eloRank=(SELECT MAX(eloRank) FROM RPGCharacter)`
@@ -377,8 +377,7 @@ export class RPG {
     if (results.top) {
       ladderEmbed.addFields({ name: 'Top', value: processPotentiallyPluralResults(results.top, 'TOP') })
     } else {
-      interaction.reply({ content: 'The arena is clean. No violence has happened yet.', ephemeral: true })
-      return
+      return interaction.reply({ content: 'The arena is clean. No violence has happened yet.', ephemeral: true })
     }
     if (results.bottom) {
       ladderEmbed.addFields({ name: 'Tail', value: processPotentiallyPluralResults(results.bottom, 'BOTTOM') })
@@ -387,20 +386,19 @@ export class RPG {
       { name: 'Wins', value: processPotentiallyPluralResults(results.wins, 'WINS') },
       { name: 'Losses', value: processPotentiallyPluralResults(results.losses, 'LOSS') }
     )
-    interaction.reply({ embeds: [ladderEmbed], ephemeral: silent })
+    return interaction.reply({ embeds: [ladderEmbed], ephemeral: silent })
   }
 
   @Slash('duel', { description: 'Challenge other chatters and prove your strength.' })
-  async challenge(interaction: CommandInteraction) {
+  async challenge(interaction: CommandInteraction): CommandReturn {
     // await interaction.deferReply()
 
     // Check if a duel is currently already going on.
     if (this.challengeInProgress) {
-      await interaction.reply({
+      return interaction.reply({
         content: 'An RPG duel is already in progress.',
         ephemeral: true,
       })
-      return
     }
 
     // Create Character for challenger. Later store character in DB, for now re-generate each time.
@@ -409,11 +407,10 @@ export class RPG {
     let challengerDBRecord: RPGCharacter
     if (!challengerUser) {
       // If this hasn't worked. Bail out now.
-      await interaction.reply({
+      return interaction.reply({
         content: 'Challenger user undefined',
         ephemeral: true,
       })
-      return
     } else {
       challengerDBRecord = await this.getUserFromDB(challengerUser.user.id)
       challenger = new Character(
@@ -425,7 +422,7 @@ export class RPG {
 
     // Check to see if the challenger has recently lost.
     if (challengerDBRecord.lastLoss.getTime() + RPG.cooldown > Date.now()) {
-      await interaction.reply({
+      return interaction.reply({
         content: `**${
           challenger.nickname ?? challengerUser.user.username
         }**, you are still recovering from the last fight. Please wait ${getTimeLeftInReadableFormat(
@@ -434,7 +431,6 @@ export class RPG {
         )} before trying again.`,
         ephemeral: true,
       })
-      return
     }
 
     // Are we on global CD?
@@ -448,12 +444,11 @@ export class RPG {
       })
       const globalCD = getGlobalRPGCDRemaining(guildOptions)
       if (globalCD) {
-        await interaction.reply({
+        return interaction.reply({
           content: `RPG Duels are on cooldown here. Please wait ${globalCD} before trying again.`,
           ephemeral: true,
           allowedMentions: { repliedUser: false },
         })
-        return
       }
     }
 
@@ -500,10 +495,9 @@ export class RPG {
 
     if (!(message instanceof Message)) {
       // Something has gone very wrong.
-      await interaction.followUp({
+      return interaction.followUp({
         content: "`message` isn't a `Message`. Foul play is afoot...",
       })
-      return
     }
 
     // Handle the button press
@@ -697,8 +691,8 @@ export class RPG {
     })
   }
 
-  private async getUserFromDB(userId: string) {
-    return await this.client.rPGCharacter.upsert({
+  private async getUserFromDB(userId: string): Promise<RPGCharacter> {
+    return this.client.rPGCharacter.upsert({
       where: {
         id: userId,
       },
@@ -709,7 +703,11 @@ export class RPG {
     })
   }
 
-  private async updateUserRPGScore(stats: RPGCharacter, opositionEloRank: number, outcome: 'win' | 'loss' | 'draw') {
+  private async updateUserRPGScore(
+    stats: RPGCharacter,
+    opositionEloRank: number,
+    outcome: 'win' | 'loss' | 'draw'
+  ): Promise<number> {
     const newEloRank = getEloRankChange(stats.eloRank, opositionEloRank, ELO_K, outcome)
     switch (outcome) {
       case 'draw': {

@@ -11,6 +11,7 @@ import {
 } from 'discord.js'
 import { Discord, Slash } from 'discordx'
 import { getCallerFromCommand } from '../utils/CommandUtils'
+import { CommandReturn } from '../utils/Types'
 
 type RPSChoice = 'rock' | 'paper' | 'scissors'
 
@@ -33,7 +34,7 @@ class RPS {
     scissors: 'paper',
   }
 
-  private clear_game() {
+  private clear_game(): void {
     if (this.timeout) {
       clearTimeout(this.timeout)
     }
@@ -47,24 +48,21 @@ class RPS {
   }
 
   @Slash('rps', { description: 'Play a game of rock paper scissors' })
-  async rpsSlash(interaction: CommandInteraction) {
+  async rpsSlash(interaction: CommandInteraction): CommandReturn {
     if (interaction.channelId !== this.generalChannel) {
-      await interaction.reply({ content: 'You cannot use that command here', ephemeral: true })
-      return
+      return interaction.reply({ content: 'You cannot use that command here', ephemeral: true })
     }
 
     if (this.inProgress) {
-      await interaction.reply({
+      return interaction.reply({
         content: 'A duel is already in progress',
         ephemeral: true,
       })
-      return
     }
 
     const challenger = getCallerFromCommand(interaction)
     if (!challenger) {
-      await interaction.reply({ content: 'An unexpected error occurred', ephemeral: true })
-      return
+      return interaction.reply({ content: 'An unexpected error occurred', ephemeral: true })
     }
 
     this.challenger = challenger
@@ -170,7 +168,7 @@ class RPS {
       .setDisabled(false)
   }
 
-  async detectChoice(choiceInteraction: ButtonInteraction, interaction: CommandInteraction) {
+  async detectChoice(choiceInteraction: ButtonInteraction, interaction: CommandInteraction): Promise<void> {
     // Don't allow choice from something that's not a button or a game that timed out.
     // Trying to reply to the latter crashes the bot
     if (!choiceInteraction.isButton || this.interaction !== interaction.id) {

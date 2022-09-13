@@ -10,6 +10,7 @@ import {
 } from 'discordx'
 import fetch from 'node-fetch'
 import hslRgb from 'hsl-rgb'
+import { CommandReturn } from '../utils/Types'
 
 interface weatherResponse {
   msg: EmbedBuilder
@@ -31,12 +32,12 @@ class Weather {
   async simple(
     @SimpleCommandOption('location', { type: SimpleCommandOptionType.String }) text: string,
     command: SimpleCommandMessage
-  ) {
+  ): CommandReturn {
     if (!text) {
       return command.sendUsageSyntax()
     }
     const weatherInfo: weatherResponse = await this.handleInput(text)
-    command.message.channel.send({ embeds: [weatherInfo.msg] })
+    return command.message.channel.send({ embeds: [weatherInfo.msg] })
   }
 
   @Slash('weather', { description: 'Get the weather for a location' })
@@ -44,9 +45,9 @@ class Weather {
     @SlashOption('location', { type: ApplicationCommandOptionType.String })
     message: string,
     interaction: CommandInteraction
-  ) {
+  ): CommandReturn {
     const weatherInfo: weatherResponse = await this.handleInput(message)
-    interaction.reply({ embeds: [weatherInfo.msg], ephemeral: weatherInfo.ephemeral })
+    return interaction.reply({ embeds: [weatherInfo.msg], ephemeral: weatherInfo.ephemeral })
   }
 
   private static aboutMessage = `Weather data provided by [OpenWeather (TM)](https://openweathermap.org)

@@ -1,5 +1,6 @@
 import { ApplicationCommandOptionType, CommandInteraction } from 'discord.js'
 import { Discord, SimpleCommand, SimpleCommandMessage, Slash, SlashOption } from 'discordx'
+import { CommandReturn } from '../utils/Types'
 
 @Discord()
 class Eightball {
@@ -29,8 +30,8 @@ class Eightball {
   private mention = false
 
   @SimpleCommand('eightball')
-  simple(command: SimpleCommandMessage) {
-    command.message.reply(this.getMessage())
+  simple(command: SimpleCommandMessage): CommandReturn {
+    return command.message.reply(this.getMessage())
   }
 
   @Slash('eightball', { description: 'Eightball' })
@@ -38,15 +39,15 @@ class Eightball {
     @SlashOption('message', { type: ApplicationCommandOptionType.String, required: false })
     message: string,
     interaction: CommandInteraction
-  ) {
+  ): CommandReturn {
     let reply = this.getMessage()
     if (message) {
       reply = `${message} - ${reply}`
     }
-    interaction.reply(reply)
+    return interaction.reply(reply)
   }
 
-  private getMessage() {
+  private getMessage(): string {
     return this.replies[Math.floor(Math.random() * this.replies.length)]
   }
 }

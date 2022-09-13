@@ -8,6 +8,7 @@ import {
   Slash,
   SlashOption,
 } from 'discordx'
+import { CommandReturn } from '../utils/Types'
 
 export const uwuify = (text: string): string => {
   // Each pattern is a tuple containing a search pattern and its associated replacement string
@@ -36,23 +37,21 @@ class UwU {
   async simple(
     @SimpleCommandOption('text', { type: SimpleCommandOptionType.String }) text: string | undefined,
     command: SimpleCommandMessage
-  ) {
+  ): CommandReturn {
     if (!text) {
-      await command.message.reply({
+      return command.message.reply({
         content: 'Usage: >uwu <text> (More than 200 characters only outside of the main channel)',
         allowedMentions: { repliedUser: false },
       })
-      return
     }
 
     if (text.length > 200 && command.message.channel.id === this.mainChannel) {
-      await command.message.reply({
+      return command.message.reply({
         content: 'Messages longer than 200 characters are only allowed outside of the main channel.',
         allowedMentions: { repliedUser: false },
       })
-      return
     }
-    await command.message.reply({ content: uwuify(text), allowedMentions: { repliedUser: false } })
+    return command.message.reply({ content: uwuify(text), allowedMentions: { repliedUser: false } })
   }
 
   @Slash('uwu', { description: 'UwUify text' })
@@ -60,14 +59,13 @@ class UwU {
     @SlashOption('text', { type: ApplicationCommandOptionType.String })
     text: string,
     interaction: CommandInteraction
-  ) {
+  ): CommandReturn {
     if (text.length > 200 && interaction.channel?.id === this.mainChannel) {
-      interaction.reply({
+      return interaction.reply({
         content: 'Messages longer than 200 characters are only allowed in the #mixu channel.',
         ephemeral: true,
       })
-      return
     }
-    interaction.reply(uwuify(text))
+    return interaction.reply(uwuify(text))
   }
 }

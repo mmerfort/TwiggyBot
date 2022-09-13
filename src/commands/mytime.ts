@@ -9,6 +9,7 @@ import {
   SlashOption,
 } from 'discordx'
 import { localiseInput } from 'localisetimemodule'
+import { CommandReturn } from '../utils/Types'
 
 const embedColors: Array<ColorResolvable> = ['#30cb9c', '#cf3463']
 const makeSafeRegEx = /(:\/\/)/g
@@ -26,13 +27,13 @@ class MyTime {
     })
     text: string,
     command: SimpleCommandMessage
-  ) {
+  ): CommandReturn {
     const localisedInfo = localiseInput(text)
 
     if (localisedInfo[1]) {
-      command.message.channel.send({ content: makeSafe(localisedInfo[0]) })
+      return command.message.channel.send({ content: makeSafe(localisedInfo[0]) })
     } else {
-      command.message.channel.send({
+      return command.message.channel.send({
         embeds: [
           new EmbedBuilder()
             .setAuthor({
@@ -65,13 +66,13 @@ class MyTime {
     })
     raw: boolean,
     interaction: CommandInteraction
-  ) {
+  ): CommandReturn {
     const localisedInfo = localiseInput(text, mode, raw)
 
     if (localisedInfo[1]) {
-      interaction.reply({ content: makeSafe(localisedInfo[0]) })
+      return interaction.reply({ content: makeSafe(localisedInfo[0]) })
     } else {
-      interaction.reply({
+      return interaction.reply({
         embeds: [
           new EmbedBuilder()
             .setAuthor({
