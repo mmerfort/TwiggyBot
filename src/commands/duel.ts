@@ -1,5 +1,6 @@
 import {
   ActionRowBuilder,
+  ApplicationCommandOptionType,
   ButtonBuilder,
   ButtonInteraction,
   ButtonStyle,
@@ -10,7 +11,7 @@ import {
   MessageActionRowComponentBuilder,
   inlineCode,
 } from 'discord.js'
-import { Discord, Slash, SlashGroup } from 'discordx'
+import { Discord, Slash, SlashGroup, SlashOption } from 'discordx'
 import { injectable } from 'tsyringe'
 import { ORM } from '../persistence/ORM.js'
 
@@ -35,7 +36,16 @@ export class Duel {
   public constructor(private client: ORM) {}
 
   @Slash({ name: 'challenge', description: 'Challenge the chat to a duel' })
-  private async duel(interaction: CommandInteraction) {
+  private async duel(
+    @SlashOption({
+      name: 'wager',
+      description: 'Declare an (unenforcable) wager for the duel.',
+      type: ApplicationCommandOptionType.String,
+      required: false,
+    })
+    wager: string,
+    interaction: CommandInteraction
+  ) {
     // Get the challenger from the DB. Create them if they don't exist yet.
     const challengerMember = getCallerFromCommand(interaction)
     const challenger = await this.getUserWithDuelStats(interaction.user.id)
@@ -106,8 +116,11 @@ export class Duel {
     }, this.timeoutDuration)
 
     const row = new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(this.createButton(false))
+    const duelMessage = wager
+      ? `${challengerMember?.user} is looking for a duel, press the button to accept.\nWager: ${wager}`
+      : `${challengerMember?.user} is looking for a duel, press the button to accept.`
     const message = await interaction.reply({
-      content: `${challengerMember?.user} is looking for a duel, press the button to accept.`,
+      content: duelMessage,
       fetchReply: true,
       components: [row],
     })
@@ -210,8 +223,11 @@ export class Duel {
           winnerText = "It's a draw! Now go sit in a corner for 10 minutes and think about your actions..."
         }
 
+        const finalMessage = wager ?
+          `${challengerMember?.user} has rolled a ${accepterScore} and ${challengerMember?.user} has rolled a ${challengerScore}. ${winnerText}\nNow fullfil the wager: ${wager}` :
+          `${challengerMember?.user} has rolled a ${accepterScore} and ${challengerMember?.user} has rolled a ${challengerScore}. ${winnerText}`
         await collectionInteraction.editReply({
-          content: `${acceptorMember?.user} has rolled a ${accepterScore} and ${challengerMember?.user} has rolled a ${challengerScore}. ${winnerText}`,
+          content: finalMessage,
         })
       }
     })
